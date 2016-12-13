@@ -1,12 +1,12 @@
 SOURCES := $(wildcard *.moon)
 LUAOUT := $(SOURCES:.moon=.lua)
 
-all: build run
+all: run
 
 build: $(LUAOUT)
 
 $(LUAOUT): $(SOURCES)
 	moonc $<
 
-run:
+run: build
 	luajit init.lua
