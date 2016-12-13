@@ -1,7 +1,9 @@
 SOURCES := $(wildcard *.moon)
 LUAOUT := $(SOURCES:.moon=.lua)
 
-all: $(LUAOUT) run
+all: build run
+
+build: $(LUAOUT)
 
 $(LUAOUT): $(SOURCES)
 	moonc $<
