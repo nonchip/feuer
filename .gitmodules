@@ -1,0 +1,3 @@
+[submodule "glua"]
+	path = glua
+	url = https://github.com/nanoant/glua.git
