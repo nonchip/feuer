@@ -1,10 +1,10 @@
 package.path = "?.lua;?/init.lua;" .. package.path
 
-max_particles=20000
+max_particles=80000
 
 width=800
 height=600
-psize=10
+psize=8
 
 ffi = require 'ffi'
 gl  = require 'glua'
@@ -27,8 +27,6 @@ class Particle
     @lifetime-=1
     if @lifetime<=0
       @initValues!
-  color: =>
-    255-(@lifetime/2),@lifetime/2,min(255,max(0,4*(@lifetime-150))),@lifetime
 
 
 particles={}
@@ -72,7 +70,7 @@ gl.BindVertexArray vao
 
 vbptr=glFloatv #vbdata, vbdata
 pposptr=glFloatv max_particles*3
-pcolptr=glUBytev max_particles*4
+plftptr=glUBytev max_particles*4
 
 vb=gl.GenBuffer!
 gl.BindBuffer gl.ARRAY_BUFFER, vb
@@ -82,9 +80,9 @@ pb=gl.GenBuffer!
 gl.BindBuffer gl.ARRAY_BUFFER, pb
 gl.BufferData gl.ARRAY_BUFFER, sizeof.float*max_particles*3, ffi.NULL, gl.STREAM_DRAW
 
-cb=gl.GenBuffer!
-gl.BindBuffer gl.ARRAY_BUFFER, cb
-gl.BufferData gl.ARRAY_BUFFER, sizeof.ubyte*max_particles*4, ffi.NULL, gl.STREAM_DRAW
+lb=gl.GenBuffer!
+gl.BindBuffer gl.ARRAY_BUFFER, lb
+gl.BufferData gl.ARRAY_BUFFER, sizeof.ubyte*max_particles, ffi.NULL, gl.STREAM_DRAW
 
 gl.utDisplayFunc ->
   gl.BindVertexArray vao
@@ -93,9 +91,9 @@ gl.utDisplayFunc ->
   gl.BufferData gl.ARRAY_BUFFER, sizeof.float*max_particles*3, ffi.NULL, gl.STREAM_DRAW
   gl.BufferSubData gl.ARRAY_BUFFER, 0, sizeof.float*#particles*3, pposptr
 
-  gl.BindBuffer gl.ARRAY_BUFFER, cb
-  gl.BufferData gl.ARRAY_BUFFER, sizeof.ubyte*max_particles*4, ffi.NULL, gl.STREAM_DRAW
-  gl.BufferSubData gl.ARRAY_BUFFER, 0, sizeof.ubyte*#particles*4, pcolptr
+  gl.BindBuffer gl.ARRAY_BUFFER, lb
+  gl.BufferData gl.ARRAY_BUFFER, sizeof.ubyte*max_particles, ffi.NULL, gl.STREAM_DRAW
+  gl.BufferSubData gl.ARRAY_BUFFER, 0, sizeof.ubyte*#particles, plftptr
 
   gl.Clear bit.bor gl.COLOR_BUFFER_BIT, gl.DEPTH_BUFFER_BIT
 
@@ -112,8 +110,8 @@ gl.utDisplayFunc ->
   gl.VertexAttribDivisor 1, 1
 
   gl.EnableVertexAttribArray 2
-  gl.BindBuffer gl.ARRAY_BUFFER, cb
-  gl.VertexAttribPointer 2, 4, gl.UNSIGNED_BYTE, gl.TRUE, 0, ffi.NULL
+  gl.BindBuffer gl.ARRAY_BUFFER, lb
+  gl.VertexAttribPointer 2, 1, gl.UNSIGNED_BYTE, gl.TRUE, 0, ffi.NULL
   gl.VertexAttribDivisor 2, 1
 
   gl.DrawArraysInstanced gl.TRIANGLE_STRIP, 0, 4, #particles
@@ -140,8 +138,8 @@ gl.utIdleFunc ->
     pposptr[i*3]  =p.x
     pposptr[i*3+1]=p.y
     pposptr[i*3+2]=0
-    pcolptr[i*4], pcolptr[i*4+1], pcolptr[i*4+2], pcolptr[i*4+3] = p\color!
-  table.insert particles,Particle! for i=1, min(50, max_particles-#particles)
+    plftptr[i]    = p.lifetime
+  table.insert particles,Particle! for i=1, min(100, max_particles-#particles)
   gl.utPostRedisplay!
 
 gl.utMainLoop!
