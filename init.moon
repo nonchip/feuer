@@ -134,9 +134,9 @@ gl.utReshapeFunc (w,h)->
   gl.Viewport 0, 0, w, h
 
 gl.utIdleFunc ->
-  p\simulate! for p in *particles
   for i=1,#particles
     p=particles[i]
+    p\simulate!
     pposptr[i*3]  =p.x
     pposptr[i*3+1]=p.y
     pposptr[i*3+2]=0
