@@ -1,6 +1,6 @@
 package.path = "?.lua;?/init.lua;" .. package.path
 
-max_particles=80000
+max_particles=50000
 
 width=800
 height=600
