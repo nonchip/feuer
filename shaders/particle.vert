@@ -2,8 +2,8 @@
 
 #define gradientCalc(from,to,step1,step2,a) mix(from,to,smoothstep(step1,step2,a))
 #define gradStart(a) { float stepTMP=-1; vec4 valTMP; float aTMP=a;
-#define gradStep(st,x,y,z,w) valTMP=gradientCalc(valTMP,vec4(x,y,z,w),stepTMP,st,aTMP); stepTMP=st;
 #define gradStepv(st,v) valTMP=gradientCalc(valTMP,v,stepTMP,st,aTMP); stepTMP=st;
+#define gradStep(st,x,y,z,w) gradStepv(st,vec4(x,y,z,w))
 #define gradStop(var) var=valTMP; }
 
 layout(location = 0) in vec2 iMeshPos;

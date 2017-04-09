@@ -8,7 +8,10 @@ psize=8
 
 ffi = require 'ffi'
 gl  = require 'glua'
+import plane from require 'glua.primitive'
 import random,min,max from require'math'
+
+clamp = (x,mi,ma)-> min ma, max mi, x
 
 class Particle
   new: =>
@@ -18,13 +21,18 @@ class Particle
     @y=0
     @dx=random(-2,2)/10.0
     @dy=random(2,5)/10.0
-    @lifetime=random(180,255)
+    @lifetime=random(160,255)
   simulate: =>
     @x+=@dx
     @y+=@dy
     @x=width/psize if @x<0
     @x=0     if @x>width/psize
     @lifetime-=1
+    if (@lifetime % 2) == 0
+      @dx+=random(-20,20)/100.0
+      @dy+=random(20,50)/100.0
+      @dx=clamp(@dx,-.2,.2)
+      @dy=clamp(@dy,.2,.5)
     if @lifetime<=0
       @initValues!
 
@@ -42,6 +50,7 @@ window = gl.utCreateWindow 'Feuer'
 gl.utFullScreen!
 
 gl.ClearColor 0, 0, .1, 1
+gl.Disable gl.CULL_FACE
 gl.Enable gl.BLEND
 gl.BlendFunc gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA
 
@@ -62,6 +71,7 @@ sizeof={
   ubyte: ffi.sizeof 'GLubyte'
 }
 
+glUIntv=ffi.typeof 'GLuint[?]'
 glFloatv=ffi.typeof 'GLfloat[?]'
 glUBytev=ffi.typeof 'GLubyte[?]'
 
@@ -84,7 +94,32 @@ lb=gl.GenBuffer!
 gl.BindBuffer gl.ARRAY_BUFFER, lb
 gl.BufferData gl.ARRAY_BUFFER, sizeof.ubyte*max_particles, ffi.NULL, gl.STREAM_DRAW
 
+
+fbv=glUIntv 1
+gl.GenFramebuffers 1, fbv
+fb=fbv[0]
+
+fbt=gl.GenTexture!
+gl.BindTexture gl.TEXTURE_2D, fbt
+gl.TexImage2D gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, ffi.NULL
+gl.TexParameteri gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR
+gl.TexParameteri gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR
+gl.BindFramebuffer gl.FRAMEBUFFER, fb
+gl.FramebufferTexture2D gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fbt, 0
+
+blurProgram = gl.program{
+  [gl.VERTEX_SHADER]:   gl.path 'shaders.blur', 'vert'
+  [gl.FRAGMENT_SHADER]: gl.path 'shaders.blur', 'frag'
+}
+
+blurPlane=plane blurProgram
+
 gl.utDisplayFunc ->
+  gl.BindFramebuffer gl.FRAMEBUFFER, fb
+
+  gl.ActiveTexture gl.TEXTURE0
+  gl.BindTexture gl.TEXTURE_2D, 0
+
   gl.BindVertexArray vao
 
   gl.BindBuffer gl.ARRAY_BUFFER, pb
@@ -116,6 +151,14 @@ gl.utDisplayFunc ->
 
   gl.DrawArraysInstanced gl.TRIANGLE_STRIP, 0, 4, #particles
 
+  gl.BindFramebuffer gl.FRAMEBUFFER, 0
+  gl.Clear bit.bor gl.COLOR_BUFFER_BIT, gl.DEPTH_BUFFER_BIT
+
+  gl.ActiveTexture gl.TEXTURE0
+  gl.BindTexture gl.TEXTURE_2D, fbt
+
+  blurPlane!
+
   gl.utSwapBuffers!
   err=gl.GetError!
   if 0~=err
@@ -127,8 +170,16 @@ gl.utDisplayFunc ->
 gl.utReshapeFunc (w,h)->
   width=w
   height=h
+  gl.BindTexture gl.TEXTURE_2D, fbt
+  gl.TexImage2D gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, ffi.NULL
+  gl.TexParameteri gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR
+  gl.TexParameteri gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR
+  gl.BindFramebuffer gl.FRAMEBUFFER, fb
+  gl.FramebufferTexture2D gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fbt, 0
   particleProgram!
-  particleProgram.modelViewProjectionMatrix = gl.ortho(0, width/psize, 0, height/psize, -20, 20)
+  particleProgram.modelViewProjectionMatrix = gl.ortho(0, w/psize, 0, h/psize, -20, 20)
+  blurProgram!
+  blurProgram.modelViewProjectionMatrix = gl.ortho(-1, 1, -1, 1, -20, 20)
   gl.Viewport 0, 0, w, h
 
 gl.utIdleFunc ->
@@ -139,7 +190,8 @@ gl.utIdleFunc ->
     pposptr[i*3+1]=p.y
     pposptr[i*3+2]=0
     plftptr[i]    = p.lifetime
-  table.insert particles,Particle! for i=1, min(100, max_particles-#particles)
+  if #particles < max_particles
+    table.insert particles,Particle! for i=1, min(100, max_particles-#particles)
   gl.utPostRedisplay!
 
 gl.utMainLoop!
